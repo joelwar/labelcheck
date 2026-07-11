@@ -1,9 +1,3 @@
 # Sample Files
 
-Place PDFs and label images here for experimenting with the app.
-
-Suggested examples:
-
-- `application_form_1.pdf`
-- `label_image_correct.png`
-- combined two-page PDFs where page 1 is the application form and page 2 is the label image
+You may experiment with the app by uploading the combined file or the single form plus an image file. There are several image files, only one of them is correct (i.e. 'label_image_correct'). The rest have some difference that will make the system return mismatch (e.g. differing volume, differing brand name, etc)
