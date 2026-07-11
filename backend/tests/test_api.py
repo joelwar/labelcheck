@@ -70,6 +70,11 @@ def test_upload_returns_applicant_and_page_image_urls(monkeypatch) -> None:
     assert image_response.status_code == 200
     assert image_response.headers["content-type"] == "image/png"
 
+    queue_response = client.get("/api/submissions")
+    assert queue_response.status_code == 200
+    queue_item = queue_response.json()[0]
+    assert queue_item["updated_at"] == queue_item["submitted_at"]
+
 
 def test_queue_brand_uses_application_form_not_label(monkeypatch) -> None:
     async def fake_extract_fields(_: bytes, __: str, document_kind: str) -> ExtractedFields:

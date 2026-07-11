@@ -253,7 +253,7 @@ export default function QueuePage() {
               <tr>
                 <th>Brand</th>
                 <th>Applicant</th>
-                <th>Submitted</th>
+                <th>Updated</th>
                 <th>Status</th>
                 <th>Review</th>
               </tr>
@@ -273,7 +273,10 @@ export default function QueuePage() {
                       <div className="lv-field-name">{submission.applicant_name}</div>
                       <div className="lv-subtitle">{submission.applicant_email}</div>
                     </td>
-                    <td>{formatDate(submission.submitted_at)}</td>
+                    <td>
+                      <div>{formatDate(submission.updated_at)}</div>
+                      <div className="lv-subtitle">Submitted {formatDate(submission.submitted_at)}</div>
+                    </td>
                     <td>
                       <StatusPill status={submission.status} />
                     </td>

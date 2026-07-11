@@ -35,6 +35,7 @@ class SubmissionSummary(BaseModel):
     applicant_email: str
     brand: str
     submitted_at: str
+    updated_at: str
     status: SubmissionStatus
     decided_by: DecidedBy
 

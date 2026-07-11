@@ -26,6 +26,7 @@ export type SubmissionSummary = {
   applicant_email: string;
   brand: string;
   submitted_at: string;
+  updated_at: string;
   status: SubmissionStatus;
   decided_by: DecidedBy;
 };

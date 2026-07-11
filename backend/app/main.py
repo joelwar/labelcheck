@@ -545,6 +545,7 @@ def _summary(submission: StoredSubmission) -> SubmissionSummary:
         applicant_email=submission.applicant_email,
         brand=_brand(submission),
         submitted_at=submission.submitted_at,
+        updated_at=submission.decided_at or submission.submitted_at,
         status=submission.status,
         decided_by=submission.decided_by,
     )
