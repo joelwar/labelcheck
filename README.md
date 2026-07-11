@@ -7,7 +7,7 @@ This monorepo contains a working prototype for TTB-style alcohol beverage label 
 
 The app accepts applicant contact details plus either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes.
 
-Experiment files can be kept in `sample_files/`. Add application PDFs, label images, or combined two-page PDFs there when you want local/demo files for trying the app.
+Experiment files can be kept in `sample_files/`. Add application PDFs, label images, or combined two-page PDFs there when you want local/demo files for trying the app (optional). You may also load straight from your machine.
 
 ## Local Setup
 
@@ -46,11 +46,11 @@ Set `BACKEND_API_URL=http://localhost:8000` locally. The browser talks to the Ne
 
 The prototype is a review-for-automation queue:
 
-1. Upload a new submission from the queue page.
-2. The backend extracts fields and creates a stored submission.
+1. Upload a new submission from the queue page. This queue is also fed by website submissions done by applicants.
+2. The backend extracts fields and creates a stored submission using hyper fast LLM model.
 3. If extraction succeeds, the system sets `approved` or `needs_correction`.
 4. If extraction fails, the system sets `to_review` and shows the source files for manual review.
-5. An agent confirms, overrides, or manually decides the submission.
+5. An agent confirms, overrides, or manually decides the submission. It list the records as part of the overall set of submissions with their statuses.
 
 ## API
 
@@ -87,7 +87,7 @@ Every submission has one status:
 
 - `approved`: all compared fields passed the prototype rules.
 - `needs_correction`: extraction succeeded, but one or more fields mismatched.
-- `to_review`: extraction failed or a required field could not be read reliably.
+- `to_review`: extraction failed or a required field could not be read reliably (very rare ocurrance).
 
 Every submission also records `decided_by`:
 
@@ -127,83 +127,6 @@ The backend uses an in-memory dictionary keyed by submission id. This keeps the 
 
 Uploaded files are kept only in that in-memory queue so agents can view them on detail/manual review screens. Do not treat this as production storage.
 
-## Seed Data
-
-Seed folders live under `backend/seed_data`. Each complete folder should contain:
-
-- `application_form.pdf`
-- `label_image.png`
-- `metadata.json`
-
-Example metadata:
-
-```json
-{
-  "applicant_name": "Old Tom Distillery, LLC",
-  "applicant_email": "regulatory@oldtomdistillery.example.com"
-}
-```
-
-The backend loads seed folders at startup when the in-memory queue is empty. You can also run `python scripts/seed.py` from the `backend` directory or call `POST /api/seed`. Incomplete folders are skipped, and missing or invalid metadata falls back to demo applicant values.
-
-## Railway Deployment
-
-Create two Railway services from this same repository.
-
-### Backend Service
-
-Railway settings:
-
-- Root directory: `/backend`
-- Build command: leave as Nixpacks default
-- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-
-The backend includes `backend/nixpacks.toml` so Railway installs Poppler for PDF page previews.
-
-Environment variables:
-
-- `GEMINI_API_KEY`
-- `ALLOWED_ORIGINS=https://your-frontend-service.up.railway.app`
-- `MAX_UPLOAD_MB=15`
-- `GEMINI_MODEL=gemini-3.1-flash-lite`
-
-### Frontend Service
-
-Railway settings:
-
-- Root directory: `/frontend`
-- Build command: `npm run build`
-- Start command: `npm run start -- -p $PORT`
-
-Environment variables:
-
-- `BACKEND_API_URL=https://your-backend-service.up.railway.app`
-- `NIXPACKS_NODE_VERSION=22`
-
-After both services deploy, update backend `ALLOWED_ORIGINS` to the final frontend Railway domain and redeploy the backend.
-
-## Testing
-
-Run backend comparison tests:
-
-```bash
-cd backend
-pytest
-```
-
-Manual fixture checks should confirm:
-
-- Perfect match: all fields `match`, submission `approved`
-- ABV mismatch: only alcohol content `mismatch`, submission `needs_correction`
-- Warning format mismatch: warning `mismatch`, never normalized into a match
-- Multiple differences: each differing field `mismatch`, submission `needs_correction`
-- Low-resolution or illegible label: submission `to_review`, `extraction_ok: false`
-
-Also verify:
-
-- Confirming an automated result sets `decided_by: agent_confirmed`.
-- Overriding an automated result requires a reason and sets `decided_by: agent_override`.
-- Manually deciding an extraction-failure case sets `decided_by: agent_manual`.
 
 ## Known Limitations
 
