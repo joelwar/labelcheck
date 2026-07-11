@@ -10,6 +10,17 @@ The app accepts applicant contact details plus either two files, one application
 
 Experiment files can be kept in `sample_files/`. Add application PDFs, label images, or combined two-page PDFs there when you want local/demo files for trying the app (optional). You may also load straight from your machine.
 
+## User Instructions
+1. Open the live demo https://label-check-production-2026.up.railway.app
+2. Click `Upload new submission`.
+3. Enter an applicant name and email (it can be dummy name and email).
+4. Choose either:
+   - `Two files` and upload one application form plus one label image from `sample_files/`
+   - `One combined file` and upload a two-page PDF from `sample_files/`
+5. Click `Run automation`.
+6. Review the result, mismatch reasons, and source document images.
+7. Click `Confirm` if the result is correct, or `Override` / `Save decision` if needed.
+
 ## Local Setup
 
 ### Backend
