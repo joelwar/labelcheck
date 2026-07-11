@@ -101,28 +101,103 @@ def _numbers_equal(left: Decimal, right: Decimal, tolerance: Decimal) -> bool:
 
 
 def evaluate_field(key: str, app_val: str, scan_val: str) -> FieldStatus:
+    return explain_field(key, app_val, scan_val)[0]
+
+
+def explain_field(key: str, app_val: str, scan_val: str) -> tuple[FieldStatus, str]:
     app_trimmed = (app_val or "").strip()
     scan_trimmed = (scan_val or "").strip()
 
+    missing_reason = _missing_reason(app_trimmed, scan_trimmed)
+    if missing_reason:
+        return "mismatch", missing_reason
+
     if key == "warning":
-        return "match" if app_trimmed == scan_trimmed else "mismatch"
+        if app_trimmed == scan_trimmed:
+            return "match", "Exact match."
+        return "mismatch", _text_difference_reason(app_trimmed, scan_trimmed, strict_case=True)
 
     if key == "brand" or key == "classType":
-        return "match" if app_trimmed == scan_trimmed else "mismatch"
+        if app_trimmed == scan_trimmed:
+            return "match", "Exact match."
+        return "mismatch", _text_difference_reason(app_trimmed, scan_trimmed, strict_case=True)
 
     if key == "abv":
         app_abv = parse_abv(app_trimmed)
         scan_abv = parse_abv(scan_trimmed)
         if app_abv is not None and scan_abv is not None:
-            return "match" if _numbers_equal(app_abv, scan_abv, Decimal("0.05")) else "mismatch"
+            if _numbers_equal(app_abv, scan_abv, Decimal("0.05")):
+                return "match", f"Equivalent alcohol content ({app_abv}% vs {scan_abv}%)."
+            return "mismatch", f"Numeric alcohol content differs ({app_abv}% vs {scan_abv}%)."
+        if app_abv is None or scan_abv is None:
+            return _fallback_text_result(app_trimmed, scan_trimmed)
 
     if key == "netContents":
         app_net = parse_net_contents(app_trimmed)
         scan_net = parse_net_contents(scan_trimmed)
         if app_net is not None and scan_net is not None:
-            return "match" if _numbers_equal(app_net, scan_net, Decimal("1")) else "mismatch"
+            if _numbers_equal(app_net, scan_net, Decimal("1")):
+                return "match", f"Equivalent net contents ({app_net.normalize()} mL vs {scan_net.normalize()} mL)."
+            return "mismatch", f"Numeric net contents differ ({app_net.normalize()} mL vs {scan_net.normalize()} mL)."
+        if app_net is None or scan_net is None:
+            return _fallback_text_result(app_trimmed, scan_trimmed)
 
-    return "match" if normalize_text(app_trimmed) == normalize_text(scan_trimmed) else "mismatch"
+    return _fallback_text_result(app_trimmed, scan_trimmed)
+
+
+def _missing_reason(app_val: str, scan_val: str) -> str:
+    if not app_val and not scan_val:
+        return "Both values are missing."
+    if not app_val:
+        return "Application form value is missing."
+    if not scan_val:
+        return "Label image value is missing."
+    return ""
+
+
+def _fallback_text_result(app_val: str, scan_val: str) -> tuple[FieldStatus, str]:
+    if normalize_text(app_val) == normalize_text(scan_val):
+        return "match", "Equivalent after text normalization."
+    return "mismatch", _text_difference_reason(app_val, scan_val, strict_case=False)
+
+
+def _text_difference_reason(app_val: str, scan_val: str, *, strict_case: bool) -> str:
+    if app_val.casefold() == scan_val.casefold():
+        return "Case differs; this field is case-sensitive." if strict_case else "Case differs."
+
+    if _collapse_spaces(app_val) == _collapse_spaces(scan_val):
+        return "Spacing or line breaks differ."
+
+    if _strip_punctuation(app_val).casefold() == _strip_punctuation(scan_val).casefold():
+        return "Punctuation or special characters differ."
+
+    if normalize_text(app_val) == normalize_text(scan_val):
+        return "Case, punctuation, or spacing differs."
+
+    return f"Wording or characters differ near: {_first_difference(app_val, scan_val)}"
+
+
+def _collapse_spaces(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _strip_punctuation(value: str) -> str:
+    return re.sub(r"[^\w\s]", "", _collapse_spaces(value), flags=re.UNICODE)
+
+
+def _first_difference(left: str, right: str) -> str:
+    max_index = min(len(left), len(right))
+    index = 0
+    while index < max_index and left[index] == right[index]:
+        index += 1
+
+    start = max(index - 18, 0)
+    left_piece = left[start : index + 28] or "(end)"
+    right_piece = right[start : index + 28] or "(end)"
+    return f'application "{left_piece}" vs label "{right_piece}"'
+
+def _field_reason(key: str, app_val: str, scan_val: str) -> tuple[FieldStatus, str]:
+    return explain_field(key, app_val, scan_val)
 
 
 def compare_fields(
@@ -132,13 +207,15 @@ def compare_fields(
     for key, label_text in FIELD_LABELS.items():
         app_val = getattr(application, key)
         scan_val = getattr(label, key)
+        status, reason = _field_reason(key, app_val, scan_val)
         results.append(
             FieldResult(
                 key=key,
                 label=label_text,
                 appVal=app_val,
                 scanVal=scan_val,
-                status=evaluate_field(key, app_val, scan_val),
+                status=status,
+                reason=reason,
             )
         )
 

@@ -190,6 +190,7 @@ function AutomatedReview({
               <th>Application Form</th>
               <th>Label Image</th>
               <th>Result</th>
+              <th>Reason</th>
             </tr>
           </thead>
           <tbody>
@@ -201,6 +202,7 @@ function AutomatedReview({
                 <td>
                   <FieldPill status={row.status} />
                 </td>
+                <td className="lv-reason-cell">{row.reason || "No difference found."}</td>
               </tr>
             ))}
           </tbody>

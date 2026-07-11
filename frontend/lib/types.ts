@@ -17,6 +17,7 @@ export type FieldResult = {
   appVal: string;
   scanVal: string;
   status: FieldStatus;
+  reason: string;
 };
 
 export type SubmissionSummary = {

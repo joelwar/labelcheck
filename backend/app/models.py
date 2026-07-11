@@ -26,6 +26,7 @@ class FieldResult(BaseModel):
     appVal: str
     scanVal: str
     status: FieldStatus
+    reason: str = ""
 
 
 class SubmissionSummary(BaseModel):

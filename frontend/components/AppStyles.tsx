@@ -91,6 +91,8 @@ export function AppStyles() {
       .lv-table tr.lv-mismatch-row .lv-field-name { color: var(--red); }
       .lv-field-name { font-weight: 700; white-space: nowrap; }
       .lv-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: #33362e; overflow-wrap: anywhere; }
+      .lv-reason-cell { color: #55584f; min-width: 180px; line-height: 1.4; }
+      .lv-mismatch-row .lv-reason-cell { color: var(--red); font-weight: 700; }
       .pill { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 100px; white-space: nowrap; min-width: 76px; }
       .pill-match { background: #e2ede6; color: var(--green); }
       .pill-neutral { background: #e8e8e2; color: var(--neutral); }
