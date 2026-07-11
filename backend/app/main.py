@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw
 from pdf2image import convert_from_bytes
 
 from app.comparison import compare_fields
-from app.extraction import extract_combined_fields, extract_fields
+from app.extraction import extract_fields
 from app.models import (
     DecidedBy,
     DecisionRequest,
@@ -150,16 +150,16 @@ async def create_submission(
     applicant_name = _validate_required_text(applicant_name, "Applicant / company name")
     applicant_email = _validate_email(applicant_email)
 
+    process_mode: Mode = "separate"
     if mode == "separate":
         app_upload = await _read_upload(application_file, "application_file")
         label_upload = await _read_upload(label_file, "label_file")
     else:
         combined_upload = await _read_upload(combined_file, "combined_file")
-        app_upload = combined_upload
-        label_upload = combined_upload
+        app_upload, label_upload = _split_combined_upload(combined_upload)
 
     stored = await _process_submission(
-        mode=mode,
+        mode=process_mode,
         applicant_name=applicant_name,
         applicant_email=applicant_email,
         app_upload=app_upload,
@@ -260,9 +260,7 @@ async def _process_submission(
             if label_error:
                 logger.warning("Label extraction failed: %s", label_error)
         else:
-            application_fields, label_fields = await extract_combined_fields(
-                app_upload.extraction_bytes, app_upload.extraction_media_type
-            )
+            raise RuntimeError("Unsupported processing mode.")
 
         if _has_readable_fields(application_fields) or _has_readable_fields(label_fields):
             extraction_ok = True
@@ -427,6 +425,34 @@ async def _read_upload(file: Optional[UploadFile], field_name: str) -> UploadPay
         display_media_type=media_type,
         filename=filename,
         page_images=_page_images(data, media_type, filename),
+    )
+
+
+def _split_combined_upload(upload: UploadPayload) -> tuple[UploadPayload, UploadPayload]:
+    if upload.extraction_media_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Combined submissions must be uploaded as a PDF.")
+    if len(upload.page_images) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Combined submissions must include at least two pages: page 1 application form, page 2 label image.",
+        )
+
+    stem = Path(upload.filename).stem or "combined"
+    return (
+        _page_upload(upload.page_images[0], f"{stem}-application-page-1.png"),
+        _page_upload(upload.page_images[1], f"{stem}-label-page-2.png"),
+    )
+
+
+def _page_upload(page: PageImage, filename: str) -> UploadPayload:
+    page_image = PageImage(data=page.data, media_type=page.media_type, filename=filename)
+    return UploadPayload(
+        extraction_bytes=page.data,
+        extraction_media_type=page.media_type,
+        display_bytes=page.data,
+        display_media_type=page.media_type,
+        filename=filename,
+        page_images=[page_image],
     )
 
 
