@@ -138,7 +138,8 @@ export default function QueuePage() {
           <div className="lv-eyebrow">Label Verification - Agent Queue</div>
           <h1 className="lv-title">TTB Submission Review</h1>
           <p className="lv-subtitle">
-            Upload label submissions, review the system result, and confirm or correct the call.
+            Review submissions uploaded by an agent or created automatically from the applicant website form,
+            then confirm or correct the system call.
           </p>
         </div>
 

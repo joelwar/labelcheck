@@ -24,7 +24,7 @@ export default function SubmissionPage({ params }: { params: Promise<{ id: strin
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<SubmissionStatus>("approved");
+  const [newStatus, setNewStatus] = useState<SubmissionStatus>("needs_correction");
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function SubmissionPage({ params }: { params: Promise<{ id: strin
         </Link>
 
         <div className="lv-header" style={{ marginTop: 18 }}>
-          <div className="lv-eyebrow">Submission Detail</div>
+          <div className="lv-eyebrow lv-detail-eyebrow">Submission Detail</div>
           <h1 className="lv-title">{submission ? brand(submission) : "Loading submission"}</h1>
           <p className="lv-subtitle">
             Review the system call, inspect source documents, and record the agent decision.

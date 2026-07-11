@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageDraw
 from pdf2image import convert_from_bytes
 
-from app.comparison import compare_fields, extraction_complete
+from app.comparison import compare_fields
 from app.extraction import extract_combined_fields, extract_fields
 from app.models import (
     DecidedBy,
@@ -260,18 +260,18 @@ async def _process_submission(
                 app_upload.extraction_bytes, app_upload.extraction_media_type
             )
 
-        extraction_ok = extraction_complete(application_fields) and extraction_complete(label_fields)
-        if extraction_ok:
+        if _has_readable_fields(application_fields) and _has_readable_fields(label_fields):
+            extraction_ok = True
             field_results, status = compare_fields(application_fields, label_fields)
         else:
-            status = "needs_correction"
+            status = "to_review"
             extraction_error = (
-                "The system could not reliably read every required field. "
-                "Please review the uploaded documents manually."
+                "The system could not read usable field data from one or more uploaded documents. "
+                "Please review the files manually."
             )
     except Exception as exc:
         logger.warning("Extraction failed: %s", exc)
-        status = "needs_correction"
+        status = "to_review"
         extraction_error = (
             "The system could not complete automated extraction. "
             "Please review the uploaded documents manually."
@@ -562,6 +562,19 @@ def _validate_email(value: str) -> str:
     if not EMAIL_PATTERN.match(cleaned):
         raise HTTPException(status_code=422, detail="Applicant email must look like name@example.com.")
     return cleaned
+
+
+def _has_readable_fields(fields: ExtractedFields) -> bool:
+    return any(
+        value.strip()
+        for value in (
+            fields.brand,
+            fields.classType,
+            fields.abv,
+            fields.netContents,
+            fields.warning,
+        )
+    )
 
 
 def _file_for_kind(submission: StoredSubmission, file_kind: str) -> UploadPayload:

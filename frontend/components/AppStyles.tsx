@@ -21,6 +21,7 @@ export function AppStyles() {
       .lv-container.wide { max-width: 980px; }
       .lv-header { margin-bottom: 24px; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
       .lv-eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass); font-weight: 700; margin-bottom: 6px; }
+      .lv-detail-eyebrow { font-size: 14px; letter-spacing: 0.08em; margin-bottom: 8px; }
       .lv-title { font-size: 24px; font-weight: 700; margin: 0 0 4px 0; letter-spacing: 0; }
       .lv-subtitle { font-size: 14px; color: #55584f; margin: 0; line-height: 1.45; }
       .lv-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--brass); margin: 22px 0 10px 0; }
