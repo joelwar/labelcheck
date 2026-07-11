@@ -1,4 +1,5 @@
 # TTB Label Verification Prototype
+#### Produced by Joel Guerra (jd.guerra0404@gmail.com)
 
 This monorepo contains a working prototype for TTB-style alcohol beverage label review.
 
