@@ -65,6 +65,7 @@ export default function SubmissionPage({ params }: { params: Promise<{ id: strin
       setSubmission(payload);
       setOverrideOpen(false);
       setReason("");
+      window.location.href = "/";
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Decision could not be saved.");
     } finally {
