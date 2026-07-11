@@ -5,7 +5,7 @@ This monorepo contains a working prototype for TTB-style alcohol beverage label 
 - `frontend`: Next.js 16, TypeScript, Tailwind CSS
 - `backend`: FastAPI, Gemini extraction, in-memory submission queue, field comparison logic
 
-The app accepts applicant contact details plus either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes.
+The app accepts applicant contact details plus either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes. The app only focuses on the review portion of the flow. In theory a form submission website is connect to the app where records get sourced; also, the app would (if live at agency) send automatic email with information of what needs to be corrected if applicable.
 
 Experiment files can be kept in `sample_files/`. Add application PDFs, label images, or combined two-page PDFs there when you want local/demo files for trying the app (optional). You may also load straight from your machine.
 
@@ -47,7 +47,7 @@ Set `BACKEND_API_URL=http://localhost:8000` locally. The browser talks to the Ne
 The prototype is a review-for-automation queue:
 
 1. Upload a new submission from the queue page. This queue is also fed by website submissions done by applicants.
-2. The backend extracts fields and creates a stored submission using hyper fast LLM model.
+2. The backend extracts fields and creates a stored submission using hyperfast LLM model.
 3. If extraction succeeds, the system sets `approved` or `needs_correction`.
 4. If extraction fails, the system sets `to_review` and shows the source files for manual review.
 5. An agent confirms, overrides, or manually decides the submission. It list the records as part of the overall set of submissions with their statuses.
