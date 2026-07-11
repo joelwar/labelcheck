@@ -41,19 +41,21 @@ function UploadSlot({
   accept: string;
 }) {
   return (
-    <label className="lv-upload-slot">
+    <label className={`lv-upload-slot ${file ? "has-file" : ""}`}>
       <input
         type="file"
         accept={accept}
         onChange={(event) => onFile(event.target.files?.[0] || null)}
       />
       <div className="lv-upload-icon">
-        {file ? <FileText size={18} aria-hidden="true" /> : <Upload size={18} aria-hidden="true" />}
+        {file ? <Check size={18} strokeWidth={2.5} aria-hidden="true" /> : <Upload size={18} aria-hidden="true" />}
       </div>
       <div className="lv-upload-text">
         <div className="lv-upload-label">{label}</div>
+        {file ? <div className="lv-upload-status">File loaded</div> : null}
         <div className="lv-upload-hint">{file ? file.name : hint}</div>
       </div>
+      {file ? <FileText className="lv-upload-filemark" size={18} aria-hidden="true" /> : null}
     </label>
   );
 }

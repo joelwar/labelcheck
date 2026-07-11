@@ -45,17 +45,25 @@ export function AppStyles() {
       .lv-mode-btn.active { border-color: var(--green); color: var(--green); font-weight: 700; background: #eef4f0; }
       .lv-upload-row, .lv-doc-grid { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
       .lv-upload-slot {
-        flex: 1 1 220px; display: flex; align-items: center; gap: 12px;
+        flex: 1 1 220px; display: flex; align-items: center; gap: 12px; position: relative;
         border: 1.5px dashed var(--paper-line); border-radius: 8px; background: #fff;
         padding: 14px 16px; cursor: pointer; transition: border-color 0.15s ease;
         min-height: 74px; box-sizing: border-box;
       }
       .lv-upload-slot:hover { border-color: var(--brass); }
+      .lv-upload-slot.has-file {
+        border-style: solid; border-color: var(--green); background: #eef4f0;
+        box-shadow: inset 0 0 0 1px rgba(47, 107, 79, 0.18);
+      }
       .lv-upload-slot input { position: absolute; opacity: 0; pointer-events: none; }
       .lv-upload-icon { width: 34px; height: 34px; border-radius: 6px; background: #f0ede2; display: flex; align-items: center; justify-content: center; color: var(--brass); flex-shrink: 0; }
+      .lv-upload-slot.has-file .lv-upload-icon { background: var(--green); color: #fff; }
       .lv-upload-text { min-width: 0; }
       .lv-upload-label { font-size: 13.5px; font-weight: 700; }
+      .lv-upload-status { display: inline-flex; width: fit-content; margin-top: 3px; padding: 2px 7px; border-radius: 999px; background: #dceae2; color: var(--green); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
       .lv-upload-hint { font-size: 12px; color: #8a8d82; margin-top: 2px; overflow-wrap: anywhere; line-height: 1.35; }
+      .lv-upload-slot.has-file .lv-upload-hint { color: #2f4338; font-weight: 700; padding-right: 22px; }
+      .lv-upload-filemark { color: var(--green); position: absolute; right: 14px; top: 14px; }
       .lv-upload-note { font-size: 12px; color: #8a8d82; margin: 10px 0 0 0; font-style: italic; line-height: 1.5; }
       .lv-run-btn {
         display: inline-flex; align-items: center; justify-content: center; gap: 8px;
