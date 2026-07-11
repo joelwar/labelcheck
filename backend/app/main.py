@@ -264,12 +264,14 @@ async def _process_submission(
         if extraction_ok:
             field_results, status = compare_fields(application_fields, label_fields)
         else:
+            status = "needs_correction"
             extraction_error = (
                 "The system could not reliably read every required field. "
                 "Please review the uploaded documents manually."
             )
     except Exception as exc:
         logger.warning("Extraction failed: %s", exc)
+        status = "needs_correction"
         extraction_error = (
             "The system could not complete automated extraction. "
             "Please review the uploaded documents manually."
@@ -539,11 +541,7 @@ def _detail(submission: StoredSubmission) -> SubmissionDetail:
 
 
 def _brand(submission: StoredSubmission) -> str:
-    return (
-        submission.application_fields.brand.strip()
-        or submission.label_fields.brand.strip()
-        or "Unidentified brand"
-    )
+    return submission.application_fields.brand.strip() or "Unidentified brand"
 
 
 def _now() -> str:

@@ -42,7 +42,7 @@ export default function SubmissionPage({ params }: { params: Promise<{ id: strin
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.detail || "Submission could not be loaded.");
       setSubmission(payload);
-      setNewStatus(payload.status === "approved" ? "needs_correction" : "approved");
+      setNewStatus("needs_correction");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Submission could not be loaded.");
     } finally {
@@ -193,7 +193,7 @@ function AutomatedReview({
           </thead>
           <tbody>
             {submission.field_results.map((row) => (
-              <tr key={row.key}>
+              <tr className={row.status === "mismatch" ? "lv-mismatch-row" : ""} key={row.key}>
                 <td className="lv-field-name">{row.label}</td>
                 <td className="lv-val">{row.appVal || "Not found"}</td>
                 <td className="lv-val">{row.scanVal || "Not found"}</td>
@@ -267,7 +267,7 @@ function ManualReview({
           </p>
           <ApplicantMeta submission={submission} />
         </div>
-        <StatusPill status="to_review" />
+        <StatusPill status={submission.status} />
       </div>
 
       <DocumentPreview submission={submission} open={sourcesOpen} setOpen={setSourcesOpen} />
@@ -414,7 +414,7 @@ function Alert({ message }: { message: string }) {
 }
 
 function brand(submission: SubmissionDetail) {
-  return submission.application_fields.brand || submission.label_fields.brand || "Unidentified brand";
+  return submission.application_fields.brand || "Unidentified brand";
 }
 
 function decisionCopy(value: string) {

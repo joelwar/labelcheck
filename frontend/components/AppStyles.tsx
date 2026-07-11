@@ -78,6 +78,8 @@ export function AppStyles() {
       .lv-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6e64; padding: 10px 14px; border-bottom: 1.5px solid var(--paper-line); font-weight: 700; }
       .lv-table td { padding: 12px 14px; border-bottom: 1px solid var(--paper-line); font-size: 13.5px; vertical-align: top; }
       .lv-table tr:last-child td { border-bottom: none; }
+      .lv-table tr.lv-mismatch-row td { background: #fff4f2; border-bottom-color: #e0b4ae; }
+      .lv-table tr.lv-mismatch-row .lv-field-name { color: var(--red); }
       .lv-field-name { font-weight: 700; white-space: nowrap; }
       .lv-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: #33362e; overflow-wrap: anywhere; }
       .pill { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 100px; white-space: nowrap; min-width: 76px; }
