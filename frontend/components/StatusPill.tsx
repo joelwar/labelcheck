@@ -1,25 +1,20 @@
-import { AlertTriangle, CheckCircle2, HelpCircle } from "lucide-react";
-import type { Status } from "@/lib/types";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import type { FieldStatus } from "@/lib/types";
 
-const STATUS_COPY: Record<Status, { text: string; className: string; icon: typeof CheckCircle2 }> = {
+const STATUS_COPY: Record<FieldStatus, { text: string; className: string; icon: typeof CheckCircle2 }> = {
   match: {
     text: "Match",
     className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
     icon: CheckCircle2
   },
-  review: {
-    text: "Needs review",
-    className: "bg-amber-50 text-amber-900 ring-amber-200",
-    icon: HelpCircle
-  },
-  fail: {
+  mismatch: {
     text: "Mismatch",
     className: "bg-red-50 text-red-800 ring-red-200",
     icon: AlertTriangle
   }
 };
 
-export function StatusPill({ status }: { status: Status }) {
+export function StatusPill({ status }: { status: FieldStatus }) {
   const config = STATUS_COPY[status];
   const Icon = config.icon;
   return (

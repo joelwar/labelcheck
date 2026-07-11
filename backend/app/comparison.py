@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
-from app.models import ExtractedFields, FieldResult, Status
+from app.models import ExtractedFields, FieldResult, FieldStatus, SubmissionStatus
 
 
 FIELD_LABELS = {
@@ -100,33 +100,34 @@ def _numbers_equal(left: Decimal, right: Decimal, tolerance: Decimal) -> bool:
     return abs(left - right) <= tolerance
 
 
-def evaluate_field(key: str, app_val: str, scan_val: str) -> Status:
-    app_trimmed = (app_val or "").trim() if hasattr(app_val, "trim") else (app_val or "").strip()
-    scan_trimmed = (scan_val or "").trim() if hasattr(scan_val, "trim") else (scan_val or "").strip()
+def evaluate_field(key: str, app_val: str, scan_val: str) -> FieldStatus:
+    app_trimmed = (app_val or "").strip()
+    scan_trimmed = (scan_val or "").strip()
 
     if key == "warning":
-        return "match" if app_trimmed == scan_trimmed else "fail"
+        return "match" if app_trimmed == scan_trimmed else "mismatch"
+
+    if key == "brand" or key == "classType":
+        return "match" if app_trimmed == scan_trimmed else "mismatch"
 
     if key == "abv":
         app_abv = parse_abv(app_trimmed)
         scan_abv = parse_abv(scan_trimmed)
         if app_abv is not None and scan_abv is not None:
-            return "match" if _numbers_equal(app_abv, scan_abv, Decimal("0.05")) else "fail"
+            return "match" if _numbers_equal(app_abv, scan_abv, Decimal("0.05")) else "mismatch"
 
     if key == "netContents":
         app_net = parse_net_contents(app_trimmed)
         scan_net = parse_net_contents(scan_trimmed)
         if app_net is not None and scan_net is not None:
-            return "match" if _numbers_equal(app_net, scan_net, Decimal("1")) else "fail"
+            return "match" if _numbers_equal(app_net, scan_net, Decimal("1")) else "mismatch"
 
-    if app_trimmed == scan_trimmed:
-        return "match"
-    if normalize_text(app_trimmed) == normalize_text(scan_trimmed):
-        return "review"
-    return "fail"
+    return "match" if normalize_text(app_trimmed) == normalize_text(scan_trimmed) else "mismatch"
 
 
-def compare_fields(application: ExtractedFields, label: ExtractedFields) -> tuple[list[FieldResult], Status]:
+def compare_fields(
+    application: ExtractedFields, label: ExtractedFields
+) -> tuple[list[FieldResult], SubmissionStatus]:
     results: list[FieldResult] = []
     for key, label_text in FIELD_LABELS.items():
         app_val = getattr(application, key)
@@ -141,10 +142,19 @@ def compare_fields(application: ExtractedFields, label: ExtractedFields) -> tupl
             )
         )
 
-    if any(result.status == "fail" for result in results):
-        overall: Status = "fail"
-    elif any(result.status == "review" for result in results):
-        overall = "review"
-    else:
-        overall = "match"
+    overall: SubmissionStatus = (
+        "needs_correction" if any(result.status == "mismatch" for result in results) else "approved"
+    )
     return results, overall
+
+
+def extraction_complete(fields: ExtractedFields) -> bool:
+    return all(
+        [
+            fields.brand.strip(),
+            fields.classType.strip(),
+            fields.abv.strip(),
+            fields.netContents.strip(),
+            fields.warning.strip(),
+        ]
+    )
