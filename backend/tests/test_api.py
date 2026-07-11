@@ -181,3 +181,39 @@ def test_unreadable_extraction_routes_to_manual_review(monkeypatch) -> None:
     assert payload["status"] == "to_review"
     assert payload["extraction_ok"] is False
     assert payload["field_results"] == []
+
+
+def test_one_file_extraction_failure_still_routes_to_correction(monkeypatch) -> None:
+    async def fake_extract_fields(_: bytes, __: str, document_kind: str) -> ExtractedFields:
+        if document_kind == "application":
+            raise RuntimeError("application extraction failed")
+        return ExtractedFields(
+            brand="Old Tom Gin",
+            classType="Gin",
+            abv="45% Alc./Vol.",
+            netContents="750 ml",
+            warning="GOVERNMENT WARNING:",
+        )
+
+    monkeypatch.setattr(main, "extract_fields", fake_extract_fields)
+    client = TestClient(main.app)
+
+    response = client.post(
+        "/api/submissions",
+        data={
+            "mode": "separate",
+            "applicant_name": "Testing",
+            "applicant_email": "test@gmail.com",
+        },
+        files={
+            "application_file": ("application.png", PNG_BYTES, "image/png"),
+            "label_file": ("label.png", PNG_BYTES, "image/png"),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "needs_correction"
+    assert payload["extraction_ok"] is True
+    assert payload["extraction_error"] is None
+    assert all(row["status"] == "mismatch" for row in payload["field_results"])

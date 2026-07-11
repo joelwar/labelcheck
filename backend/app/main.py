@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from xml.etree import ElementTree
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -251,16 +251,20 @@ async def _process_submission(
 
     try:
         if mode == "separate":
-            application_fields, label_fields = await asyncio.gather(
-                extract_fields(app_upload.extraction_bytes, app_upload.extraction_media_type, "application"),
-                extract_fields(label_upload.extraction_bytes, label_upload.extraction_media_type, "label"),
+            (application_fields, app_error), (label_fields, label_error) = await asyncio.gather(
+                _safe_extract_fields(app_upload, "application"),
+                _safe_extract_fields(label_upload, "label"),
             )
+            if app_error:
+                logger.warning("Application extraction failed: %s", app_error)
+            if label_error:
+                logger.warning("Label extraction failed: %s", label_error)
         else:
             application_fields, label_fields = await extract_combined_fields(
                 app_upload.extraction_bytes, app_upload.extraction_media_type
             )
 
-        if _has_readable_fields(application_fields) and _has_readable_fields(label_fields):
+        if _has_readable_fields(application_fields) or _has_readable_fields(label_fields):
             extraction_ok = True
             field_results, status = compare_fields(application_fields, label_fields)
         else:
@@ -273,8 +277,8 @@ async def _process_submission(
         logger.warning("Extraction failed: %s", exc)
         status = "to_review"
         extraction_error = (
-            "The system could not complete automated extraction. "
-            "Please review the uploaded documents manually."
+            "The system could not read usable field data from one or more uploaded documents. "
+            "Please review the files manually."
         )
 
     stored = _store_submission(
@@ -292,6 +296,15 @@ async def _process_submission(
         processing_time_ms=int((time.perf_counter() - started) * 1000),
     )
     return stored
+
+
+async def _safe_extract_fields(
+    upload: UploadPayload, kind: Literal["application", "label"]
+) -> tuple[ExtractedFields, str | None]:
+    try:
+        return await extract_fields(upload.extraction_bytes, upload.extraction_media_type, kind), None
+    except Exception as exc:
+        return ExtractedFields(), str(exc)
 
 
 @app.get("/api/submissions", response_model=list[SubmissionSummary])
