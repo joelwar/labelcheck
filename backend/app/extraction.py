@@ -120,23 +120,24 @@ def _create_interaction(
     schema: dict[str, Any],
     max_output_tokens: int,
 ) -> dict[str, Any]:
-    interaction = _client().interactions.create(
-        model=MODEL,
-        store=False,
-        input=[
-            {"type": "text", "text": prompt},
-            _input_block(data, media_type),
-        ],
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": schema,
-        },
-        generation_config={
-            "temperature": 0,
-            "max_output_tokens": max_output_tokens,
-        },
-    )
+    with _client() as client:
+        interaction = client.interactions.create(
+            model=MODEL,
+            store=False,
+            input=[
+                {"type": "text", "text": prompt},
+                _input_block(data, media_type),
+            ],
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": schema,
+            },
+            generation_config={
+                "temperature": 0,
+                "max_output_tokens": max_output_tokens,
+            },
+        )
     return _json_from_text(interaction.output_text)
 
 
