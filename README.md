@@ -27,7 +27,7 @@ Backend environment variables:
 - `GEMINI_API_KEY`: required Gemini API key
 - `ALLOWED_ORIGINS`: comma-separated frontend origins, defaults to `http://localhost:3000`
 - `MAX_UPLOAD_MB`: per-file upload cap, defaults to `15`
-- `GEMINI_MODEL`: optional, defaults to `gemini-3.5-flash`
+- `GEMINI_MODEL`: optional, defaults to `gemini-3.1-flash-lite`
 
 ### Frontend
 
@@ -163,7 +163,7 @@ Environment variables:
 - `GEMINI_API_KEY`
 - `ALLOWED_ORIGINS=https://your-frontend-service.up.railway.app`
 - `MAX_UPLOAD_MB=15`
-- `GEMINI_MODEL=gemini-3.5-flash`
+- `GEMINI_MODEL=gemini-3.1-flash-lite`
 
 ### Frontend Service
 

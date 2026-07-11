@@ -11,7 +11,7 @@ from google import genai
 from app.models import ExtractedFields
 
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 FIELD_SCHEMA = {
     "type": "object",
