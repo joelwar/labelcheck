@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronRight, FileText, Loader2, Upload, X } from "lucide-react";
 import type { Mode, Status, VerifyResponse } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const FORM_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const LABEL_ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
 const COMBINED_ACCEPT = ".pdf,application/pdf";
@@ -104,7 +103,7 @@ export default function Home() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/verify`, {
+      const response = await fetch("/api/verify", {
         method: "POST",
         body: formData
       });

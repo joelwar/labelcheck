@@ -36,7 +36,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL=http://localhost:8000` locally.
+Set `BACKEND_API_URL=http://localhost:8000` locally.
 
 ## API
 
@@ -108,7 +108,7 @@ Railway settings:
 
 Environment variables:
 
-- `NEXT_PUBLIC_API_URL=https://your-backend-service.up.railway.app`
+- `BACKEND_API_URL=https://your-backend-service.up.railway.app`
 
 After both services deploy, update backend `ALLOWED_ORIGINS` to the final frontend Railway domain and redeploy the backend.
 
