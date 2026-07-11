@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Check, Loader2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Loader2, X } from "lucide-react";
 import { AppStyles } from "@/components/AppStyles";
 import type { FieldStatus, SubmissionDetail, SubmissionStatus } from "@/lib/types";
 
@@ -158,6 +158,7 @@ function AutomatedReview({
   confirm: () => void;
   submitOverride: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const copy =
     submission.status === "approved"
       ? "System determined: Approved"
@@ -175,6 +176,7 @@ function AutomatedReview({
           {submission.override_reason ? (
             <p className="lv-summary-sub">Reason: {submission.override_reason}</p>
           ) : null}
+          <ApplicantMeta submission={submission} />
         </div>
         <StatusPill status={submission.status} />
       </div>
@@ -204,7 +206,7 @@ function AutomatedReview({
         </table>
       </div>
 
-      <DocumentPreview submission={submission} />
+      <DocumentPreview submission={submission} open={sourcesOpen} setOpen={setSourcesOpen} />
 
       <div className="lv-actions">
         <button className="lv-run-btn" type="button" onClick={confirm} disabled={saving}>
@@ -252,6 +254,8 @@ function ManualReview({
   setReason: (reason: string) => void;
   submitManual: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [sourcesOpen, setSourcesOpen] = useState(true);
+
   return (
     <>
       <div className="lv-summary">
@@ -261,11 +265,12 @@ function ManualReview({
             {submission.extraction_error ||
               "The system could not reliably extract the fields from the uploaded documents."}
           </p>
+          <ApplicantMeta submission={submission} />
         </div>
         <StatusPill status="to_review" />
       </div>
 
-      <DocumentPreview submission={submission} />
+      <DocumentPreview submission={submission} open={sourcesOpen} setOpen={setSourcesOpen} />
 
       <form className="lv-panel" onSubmit={submitManual}>
         <div className="lv-section-label flush">Record manual decision</div>
@@ -284,21 +289,69 @@ function ManualReview({
   );
 }
 
-function DocumentPreview({ submission }: { submission: SubmissionDetail }) {
+function ApplicantMeta({ submission }: { submission: SubmissionDetail }) {
+  return (
+    <div className="lv-meta-row">
+      <span className="lv-meta-item">
+        <strong>Applicant:</strong> {submission.applicant_name}
+      </span>
+      <span className="lv-meta-item">
+        <strong>Email:</strong> {submission.applicant_email}
+      </span>
+    </div>
+  );
+}
+
+function DocumentPreview({
+  submission,
+  open,
+  setOpen
+}: {
+  submission: SubmissionDetail;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   return (
     <>
-      <div className="lv-section-label">Source documents</div>
-      <div className="lv-doc-grid">
-        <div className="lv-doc">
-          <h3>Application Form</h3>
-          <iframe title="Application Form" src={submission.application_file_url} />
-        </div>
-        <div className="lv-doc">
-          <h3>Label Image</h3>
-          <iframe title="Label Image" src={submission.label_file_url} />
-        </div>
+      <div className="lv-source-bar">
+        <div className="lv-section-label flush">Source documents</div>
+        <button className="lv-source-toggle" type="button" onClick={() => setOpen(!open)}>
+          {open ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
+          {open ? "Hide sources" : "Show sources"}
+        </button>
       </div>
+      {open ? (
+        <div className="lv-doc-grid">
+          <PagePreview title="Application Form" images={submission.application_page_images} fallback={submission.application_file_url} />
+          <PagePreview title="Label Image" images={submission.label_page_images} fallback={submission.label_file_url} />
+        </div>
+      ) : null}
     </>
+  );
+}
+
+function PagePreview({
+  title,
+  images,
+  fallback
+}: {
+  title: string;
+  images: string[];
+  fallback: string;
+}) {
+  return (
+    <div className="lv-doc">
+      <h3>{title}</h3>
+      {images.length ? (
+        <div className="lv-page-stack">
+          {images.map((src, index) => (
+            <img className="lv-page-img" key={src} src={src} alt={`${title} page ${index + 1}`} />
+          ))}
+        </div>
+      ) : (
+        <iframe title={title} src={fallback} />
+      )}
+    </div>
   );
 }
 

@@ -62,6 +62,8 @@ export default function QueuePage() {
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [mode, setMode] = useState<Mode>("separate");
+  const [applicantName, setApplicantName] = useState("");
+  const [applicantEmail, setApplicantEmail] = useState("");
   const [applicationFile, setApplicationFile] = useState<File | null>(null);
   const [labelFile, setLabelFile] = useState<File | null>(null);
   const [combinedFile, setCombinedFile] = useState<File | null>(null);
@@ -70,8 +72,9 @@ export default function QueuePage() {
   const [error, setError] = useState("");
 
   const canSubmit = useMemo(() => {
-    return mode === "separate" ? Boolean(applicationFile && labelFile) : Boolean(combinedFile);
-  }, [applicationFile, combinedFile, labelFile, mode]);
+    const hasApplicant = Boolean(applicantName.trim() && basicEmail(applicantEmail));
+    return hasApplicant && (mode === "separate" ? Boolean(applicationFile && labelFile) : Boolean(combinedFile));
+  }, [applicantEmail, applicantName, applicationFile, combinedFile, labelFile, mode]);
 
   useEffect(() => {
     loadSubmissions();
@@ -97,12 +100,14 @@ export default function QueuePage() {
     setError("");
 
     if (!canSubmit) {
-      setError("Please choose the required file or files before uploading.");
+      setError("Please enter applicant contact information and choose the required file or files.");
       return;
     }
 
     const formData = new FormData();
     formData.append("mode", mode);
+    formData.append("applicant_name", applicantName.trim());
+    formData.append("applicant_email", applicantEmail.trim());
     if (mode === "separate") {
       formData.append("application_file", applicationFile as File);
       formData.append("label_file", labelFile as File);
@@ -150,6 +155,28 @@ export default function QueuePage() {
         {showUpload ? (
           <form className="lv-panel" onSubmit={submit}>
             <div className="lv-section-label flush">1. Provide the submission</div>
+            <div className="lv-form-grid">
+              <label className="lv-field">
+                <span>Applicant / company name</span>
+                <input
+                  className="lv-input"
+                  value={applicantName}
+                  onChange={(event) => setApplicantName(event.target.value)}
+                  required
+                />
+              </label>
+              <label className="lv-field">
+                <span>Applicant email</span>
+                <input
+                  className="lv-input"
+                  type="email"
+                  value={applicantEmail}
+                  onChange={(event) => setApplicantEmail(event.target.value)}
+                  required
+                />
+              </label>
+            </div>
+
             <div className="lv-mode-toggle">
               <button
                 type="button"
@@ -222,6 +249,7 @@ export default function QueuePage() {
             <thead>
               <tr>
                 <th>Brand</th>
+                <th>Applicant</th>
                 <th>Submitted</th>
                 <th>Status</th>
                 <th>Review</th>
@@ -230,7 +258,7 @@ export default function QueuePage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="lv-empty">
+                  <td colSpan={5} className="lv-empty">
                     <Loader2 className="lv-spinner" size={18} aria-hidden="true" /> Loading queue
                   </td>
                 </tr>
@@ -238,6 +266,10 @@ export default function QueuePage() {
                 submissions.map((submission) => (
                   <tr key={submission.id}>
                     <td className="lv-field-name">{submission.brand}</td>
+                    <td>
+                      <div className="lv-field-name">{submission.applicant_name}</div>
+                      <div className="lv-subtitle">{submission.applicant_email}</div>
+                    </td>
                     <td>{formatDate(submission.submitted_at)}</td>
                     <td>
                       <StatusPill status={submission.status} />
@@ -251,7 +283,7 @@ export default function QueuePage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="lv-empty">
+                  <td colSpan={5} className="lv-empty">
                     No submissions yet. Upload one to start the queue.
                   </td>
                 </tr>
@@ -262,6 +294,10 @@ export default function QueuePage() {
       </div>
     </main>
   );
+}
+
+function basicEmail(value: string) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
 }
 
 function Alert({ message }: { message: string }) {

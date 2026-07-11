@@ -5,7 +5,7 @@ This monorepo contains a working prototype for TTB-style alcohol beverage label 
 - `frontend`: Next.js 16, TypeScript, Tailwind CSS
 - `backend`: FastAPI, Gemini extraction, in-memory submission queue, field comparison logic
 
-The app accepts either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes.
+The app accepts applicant contact details plus either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes.
 
 ## Local Setup
 
@@ -19,6 +19,8 @@ pip install -r requirements.txt
 cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+PDF previews use Poppler through `pdf2image`. On macOS, install it with `brew install poppler` before running the backend locally.
 
 Backend environment variables:
 
@@ -56,11 +58,16 @@ The prototype is a review-for-automation queue:
 - `GET /api/submissions/{id}`: full submission detail
 - `GET /api/submissions/{id}/files/application`: uploaded application/source file
 - `GET /api/submissions/{id}/files/label`: uploaded label/source file
+- `GET /api/submissions/{id}/files/application/page/{page}`: rendered application page image
+- `GET /api/submissions/{id}/files/label/page/{page}`: rendered label page image
+- `POST /api/seed`: load any complete seed folders that have not already been loaded
 - `POST /api/submissions/{id}/decision`: agent decision endpoint
 
 `POST /api/submissions` accepts multipart fields:
 
 - `mode`: `separate` or `combined`
+- `applicant_name`: required applicant/company name
+- `applicant_email`: required applicant email address
 - `application_file` and `label_file`: required for `separate`
 - `combined_file`: required for `combined`
 
@@ -118,6 +125,25 @@ The backend uses an in-memory dictionary keyed by submission id. This keeps the 
 
 Uploaded files are kept only in that in-memory queue so agents can view them on detail/manual review screens. Do not treat this as production storage.
 
+## Seed Data
+
+Seed folders live under `backend/seed_data`. Each complete folder should contain:
+
+- `application_form.pdf`
+- `label_image.png`
+- `metadata.json`
+
+Example metadata:
+
+```json
+{
+  "applicant_name": "Old Tom Distillery, LLC",
+  "applicant_email": "regulatory@oldtomdistillery.example.com"
+}
+```
+
+The backend loads seed folders at startup when the in-memory queue is empty. You can also run `python scripts/seed.py` from the `backend` directory or call `POST /api/seed`. Incomplete folders are skipped, and missing or invalid metadata falls back to demo applicant values.
+
 ## Railway Deployment
 
 Create two Railway services from this same repository.
@@ -129,6 +155,8 @@ Railway settings:
 - Root directory: `/backend`
 - Build command: leave as Nixpacks default
 - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+The backend includes `backend/nixpacks.toml` so Railway installs Poppler for PDF page previews.
 
 Environment variables:
 

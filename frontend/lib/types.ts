@@ -21,6 +21,8 @@ export type FieldResult = {
 
 export type SubmissionSummary = {
   id: string;
+  applicant_name: string;
+  applicant_email: string;
   brand: string;
   submitted_at: string;
   status: SubmissionStatus;
@@ -29,6 +31,8 @@ export type SubmissionSummary = {
 
 export type SubmissionDetail = {
   id: string;
+  applicant_name: string;
+  applicant_email: string;
   submitted_at: string;
   status: SubmissionStatus;
   decided_by: DecidedBy;
@@ -41,5 +45,7 @@ export type SubmissionDetail = {
   field_results: FieldResult[];
   application_file_url: string;
   label_file_url: string;
+  application_page_images: string[];
+  label_page_images: string[];
   processing_time_ms: number;
 };

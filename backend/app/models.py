@@ -30,6 +30,8 @@ class FieldResult(BaseModel):
 
 class SubmissionSummary(BaseModel):
     id: str
+    applicant_name: str
+    applicant_email: str
     brand: str
     submitted_at: str
     status: SubmissionStatus
@@ -38,6 +40,8 @@ class SubmissionSummary(BaseModel):
 
 class SubmissionDetail(BaseModel):
     id: str
+    applicant_name: str
+    applicant_email: str
     submitted_at: str
     status: SubmissionStatus
     decided_by: DecidedBy
@@ -50,6 +54,8 @@ class SubmissionDetail(BaseModel):
     field_results: list[FieldResult]
     application_file_url: str
     label_file_url: str
+    application_page_images: list[str]
+    label_page_images: list[str]
     processing_time_ms: int = Field(ge=0)
 
 

@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import re
 import time
 import zipfile
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import Optional
 from xml.etree import ElementTree
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from PIL import Image, ImageDraw
+from pdf2image import convert_from_bytes
 
 from app.comparison import compare_fields, extraction_complete
 from app.extraction import extract_combined_fields, extract_fields
@@ -43,6 +48,15 @@ ALLOWED_TYPES = {
 }
 DIRECTLY_SUPPORTED_TYPES = {"application/pdf", "image/png", "image/jpeg", "text/plain"}
 STATUS_ORDER = {"to_review": 0, "needs_correction": 1, "approved": 2}
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+SEED_DATA_DIR = Path(__file__).resolve().parents[1] / "seed_data"
+
+
+@dataclass
+class PageImage:
+    data: bytes
+    media_type: str
+    filename: str
 
 
 @dataclass
@@ -52,11 +66,15 @@ class UploadPayload:
     display_bytes: bytes
     display_media_type: str
     filename: str
+    page_images: list[PageImage]
 
 
 @dataclass
 class StoredSubmission:
     id: str
+    applicant_name: str
+    applicant_email: str
+    seed_key: str | None
     submitted_at: str
     status: SubmissionStatus
     decided_by: DecidedBy
@@ -74,6 +92,7 @@ class StoredSubmission:
 
 app = FastAPI(title="TTB Label Verification API")
 SUBMISSIONS: dict[str, StoredSubmission] = {}
+SEEDED_KEYS: set[str] = set()
 NEXT_ID = 1
 
 origins = [
@@ -88,6 +107,15 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def seed_on_startup() -> None:
+    if SUBMISSIONS:
+        return
+    created = await seed_submissions()
+    if created:
+        logger.info("Loaded %s seed submissions.", len(created))
 
 
 @app.middleware("http")
@@ -113,11 +141,14 @@ async def health() -> dict[str, str]:
 @app.post("/api/submissions", response_model=SubmissionDetail)
 async def create_submission(
     mode: Mode = Form(...),
+    applicant_name: str = Form(...),
+    applicant_email: str = Form(...),
     application_file: Optional[UploadFile] = File(default=None),
     label_file: Optional[UploadFile] = File(default=None),
     combined_file: Optional[UploadFile] = File(default=None),
 ) -> SubmissionDetail:
-    started = time.perf_counter()
+    applicant_name = _validate_required_text(applicant_name, "Applicant / company name")
+    applicant_email = _validate_email(applicant_email)
 
     if mode == "separate":
         app_upload = await _read_upload(application_file, "application_file")
@@ -127,6 +158,90 @@ async def create_submission(
         app_upload = combined_upload
         label_upload = combined_upload
 
+    stored = await _process_submission(
+        mode=mode,
+        applicant_name=applicant_name,
+        applicant_email=applicant_email,
+        app_upload=app_upload,
+        label_upload=label_upload,
+    )
+    return _detail(stored)
+
+
+@app.post("/api/seed")
+async def seed_now() -> dict[str, object]:
+    created = await seed_submissions()
+    return {
+        "created": len(created),
+        "submissions": [{"id": item.id, "status": item.status, "brand": _brand(item)} for item in created],
+    }
+
+
+async def seed_submissions() -> list[StoredSubmission]:
+    created: list[StoredSubmission] = []
+    if not SEED_DATA_DIR.exists():
+        logger.info("Seed data directory not found: %s", SEED_DATA_DIR)
+        return created
+
+    for folder in sorted(path for path in SEED_DATA_DIR.iterdir() if path.is_dir()):
+        seed_key = folder.name
+        if seed_key in SEEDED_KEYS or any(item.seed_key == seed_key for item in SUBMISSIONS.values()):
+            continue
+
+        application_path = folder / "application_form.pdf"
+        label_path = folder / "label_image.png"
+        if not application_path.exists() or not label_path.exists():
+            logger.info("Skipping seed folder %s; expected application_form.pdf and label_image.png.", folder.name)
+            continue
+
+        metadata = _seed_metadata(folder)
+        try:
+            stored = await _process_submission(
+                mode="separate",
+                applicant_name=metadata["applicant_name"],
+                applicant_email=metadata["applicant_email"],
+                app_upload=_read_seed_file(application_path, "application/pdf"),
+                label_upload=_read_seed_file(label_path, "image/png"),
+                seed_key=seed_key,
+            )
+            created.append(stored)
+        except Exception as exc:
+            logger.warning("Seed folder %s failed: %s", folder.name, exc)
+    return created
+
+
+def _seed_metadata(folder: Path) -> dict[str, str]:
+    metadata_path = folder / "metadata.json"
+    fallback = {
+        "applicant_name": f"Sample Submission - {folder.name}",
+        "applicant_email": "demo@example.com",
+    }
+    if not metadata_path.exists():
+        return fallback
+    try:
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        return {
+            "applicant_name": _validate_required_text(
+                str(payload.get("applicant_name") or fallback["applicant_name"]),
+                "Applicant / company name",
+            ),
+            "applicant_email": _validate_email(str(payload.get("applicant_email") or fallback["applicant_email"])),
+        }
+    except Exception as exc:
+        logger.warning("Using fallback metadata for %s: %s", folder.name, exc)
+        return fallback
+
+
+async def _process_submission(
+    *,
+    mode: Mode,
+    applicant_name: str,
+    applicant_email: str,
+    app_upload: UploadPayload,
+    label_upload: UploadPayload,
+    seed_key: str | None = None,
+) -> StoredSubmission:
+    started = time.perf_counter()
     application_fields = ExtractedFields()
     label_fields = ExtractedFields()
     field_results: list[FieldResult] = []
@@ -161,6 +276,9 @@ async def create_submission(
         )
 
     stored = _store_submission(
+        applicant_name=applicant_name,
+        applicant_email=applicant_email,
+        seed_key=seed_key,
         status=status,
         extraction_ok=extraction_ok,
         extraction_error=extraction_error,
@@ -171,7 +289,7 @@ async def create_submission(
         label_upload=label_upload,
         processing_time_ms=int((time.perf_counter() - started) * 1000),
     )
-    return _detail(stored)
+    return stored
 
 
 @app.get("/api/submissions", response_model=list[SubmissionSummary])
@@ -234,15 +352,21 @@ async def decide_submission(submission_id: str, decision: DecisionRequest) -> Su
 @app.get("/api/submissions/{submission_id}/files/{file_kind}")
 async def get_submission_file(submission_id: str, file_kind: str) -> Response:
     submission = _get_submission(submission_id)
-    if file_kind == "application":
-        upload = submission.application_file
-    elif file_kind == "label":
-        upload = submission.label_file
-    else:
-        raise HTTPException(status_code=404, detail="File not found.")
+    upload = _file_for_kind(submission, file_kind)
 
     headers = {"Content-Disposition": f'inline; filename="{upload.filename}"'}
     return Response(content=upload.display_bytes, media_type=upload.display_media_type, headers=headers)
+
+
+@app.get("/api/submissions/{submission_id}/files/{file_kind}/page/{page_number}")
+async def get_submission_page_image(submission_id: str, file_kind: str, page_number: int) -> Response:
+    submission = _get_submission(submission_id)
+    upload = _file_for_kind(submission, file_kind)
+    if page_number < 1 or page_number > len(upload.page_images):
+        raise HTTPException(status_code=404, detail="Page not found.")
+    page = upload.page_images[page_number - 1]
+    headers = {"Content-Disposition": f'inline; filename="{page.filename}"'}
+    return Response(content=page.data, media_type=page.media_type, headers=headers)
 
 
 async def _read_upload(file: Optional[UploadFile], field_name: str) -> UploadPayload:
@@ -267,12 +391,14 @@ async def _read_upload(file: Optional[UploadFile], field_name: str) -> UploadPay
     filename = file.filename or field_name
     if media_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         extraction_bytes = _docx_to_text(data, filename)
+        display_name = f"{filename}.txt" if not filename.endswith(".txt") else filename
         return UploadPayload(
             extraction_bytes=extraction_bytes,
             extraction_media_type="text/plain",
             display_bytes=extraction_bytes,
             display_media_type="text/plain; charset=utf-8",
-            filename=f"{filename}.txt" if not filename.endswith(".txt") else filename,
+            filename=display_name,
+            page_images=_text_pages(extraction_bytes, display_name),
         )
     if media_type not in DIRECTLY_SUPPORTED_TYPES:
         raise HTTPException(
@@ -285,6 +411,19 @@ async def _read_upload(file: Optional[UploadFile], field_name: str) -> UploadPay
         display_bytes=data,
         display_media_type=media_type,
         filename=filename,
+        page_images=_page_images(data, media_type, filename),
+    )
+
+
+def _read_seed_file(path: Path, media_type: str) -> UploadPayload:
+    data = path.read_bytes()
+    return UploadPayload(
+        extraction_bytes=data,
+        extraction_media_type=media_type,
+        display_bytes=data,
+        display_media_type=media_type,
+        filename=path.name,
+        page_images=_page_images(data, media_type, path.name),
     )
 
 
@@ -310,6 +449,9 @@ def _docx_to_text(data: bytes, filename: str) -> bytes:
 
 def _store_submission(
     *,
+    applicant_name: str,
+    applicant_email: str,
+    seed_key: str | None,
     status: SubmissionStatus,
     extraction_ok: bool,
     extraction_error: str | None,
@@ -325,6 +467,9 @@ def _store_submission(
     NEXT_ID += 1
     stored = StoredSubmission(
         id=submission_id,
+        applicant_name=applicant_name,
+        applicant_email=applicant_email,
+        seed_key=seed_key,
         submitted_at=_now(),
         status=status,
         decided_by="system",
@@ -340,6 +485,8 @@ def _store_submission(
         processing_time_ms=processing_time_ms,
     )
     SUBMISSIONS[submission_id] = stored
+    if seed_key:
+        SEEDED_KEYS.add(seed_key)
     return stored
 
 
@@ -353,6 +500,8 @@ def _get_submission(submission_id: str) -> StoredSubmission:
 def _summary(submission: StoredSubmission) -> SubmissionSummary:
     return SubmissionSummary(
         id=submission.id,
+        applicant_name=submission.applicant_name,
+        applicant_email=submission.applicant_email,
         brand=_brand(submission),
         submitted_at=submission.submitted_at,
         status=submission.status,
@@ -363,6 +512,8 @@ def _summary(submission: StoredSubmission) -> SubmissionSummary:
 def _detail(submission: StoredSubmission) -> SubmissionDetail:
     return SubmissionDetail(
         id=submission.id,
+        applicant_name=submission.applicant_name,
+        applicant_email=submission.applicant_email,
         submitted_at=submission.submitted_at,
         status=submission.status,
         decided_by=submission.decided_by,
@@ -375,6 +526,14 @@ def _detail(submission: StoredSubmission) -> SubmissionDetail:
         field_results=submission.field_results,
         application_file_url=f"/api/submissions/{submission.id}/files/application",
         label_file_url=f"/api/submissions/{submission.id}/files/label",
+        application_page_images=[
+            f"/api/submissions/{submission.id}/files/application/page/{index}"
+            for index in range(1, len(submission.application_file.page_images) + 1)
+        ],
+        label_page_images=[
+            f"/api/submissions/{submission.id}/files/label/page/{index}"
+            for index in range(1, len(submission.label_file.page_images) + 1)
+        ],
         processing_time_ms=submission.processing_time_ms,
     )
 
@@ -389,3 +548,98 @@ def _brand(submission: StoredSubmission) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _validate_required_text(value: str, label: str) -> str:
+    cleaned = (value or "").strip()
+    if not cleaned:
+        raise HTTPException(status_code=422, detail=f"{label} is required.")
+    return cleaned
+
+
+def _validate_email(value: str) -> str:
+    cleaned = (value or "").strip()
+    if not cleaned:
+        raise HTTPException(status_code=422, detail="Applicant email is required.")
+    if not EMAIL_PATTERN.match(cleaned):
+        raise HTTPException(status_code=422, detail="Applicant email must look like name@example.com.")
+    return cleaned
+
+
+def _file_for_kind(submission: StoredSubmission, file_kind: str) -> UploadPayload:
+    if file_kind == "application":
+        return submission.application_file
+    if file_kind == "label":
+        return submission.label_file
+    raise HTTPException(status_code=404, detail="File not found.")
+
+
+def _page_images(data: bytes, media_type: str, filename: str) -> list[PageImage]:
+    if media_type == "application/pdf":
+        return _pdf_pages(data, filename)
+    if media_type in {"image/png", "image/jpeg"}:
+        return [PageImage(data=data, media_type=media_type, filename=filename)]
+    if media_type.startswith("text/plain"):
+        return _text_pages(data, filename)
+    return [_placeholder_page(filename, "Preview unavailable")]
+
+
+def _pdf_pages(data: bytes, filename: str) -> list[PageImage]:
+    try:
+        images = convert_from_bytes(data, fmt="png", dpi=140)
+    except Exception as exc:
+        logger.warning("PDF page rendering failed for %s: %s", filename, exc)
+        return [_placeholder_page(filename, "PDF preview unavailable")]
+
+    pages: list[PageImage] = []
+    for index, image in enumerate(images, start=1):
+        output = BytesIO()
+        image.save(output, format="PNG")
+        pages.append(
+            PageImage(
+                data=output.getvalue(),
+                media_type="image/png",
+                filename=f"{Path(filename).stem}-page-{index}.png",
+            )
+        )
+    return pages or [_placeholder_page(filename, "PDF had no pages")]
+
+
+def _text_pages(data: bytes, filename: str) -> list[PageImage]:
+    text = data.decode("utf-8", errors="replace")[:4000] or "No readable text."
+    return [_placeholder_page(filename, text)]
+
+
+def _placeholder_page(filename: str, text: str) -> PageImage:
+    image = Image.new("RGB", (1000, 1300), "#ffffff")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((30, 30, 970, 1270), outline="#d9d4c6", width=3)
+    draw.text((60, 60), filename, fill="#1c2a24")
+    y = 110
+    for line in _wrap_text(text, 92):
+        draw.text((60, y), line, fill="#33362e")
+        y += 24
+        if y > 1220:
+            break
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return PageImage(
+        data=output.getvalue(),
+        media_type="image/png",
+        filename=f"{Path(filename).stem or 'preview'}.png",
+    )
+
+
+def _wrap_text(text: str, width: int) -> list[str]:
+    lines: list[str] = []
+    for paragraph in text.splitlines() or [text]:
+        current = ""
+        for word in paragraph.split():
+            candidate = f"{current} {word}".strip()
+            if len(candidate) > width and current:
+                lines.append(current)
+                current = word
+            else:
+                current = candidate
+        lines.append(current)
+    return lines

@@ -27,6 +27,14 @@ export function AppStyles() {
       .lv-section-label.flush { margin-top: 0; }
       .lv-toolbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 16px; }
       .lv-panel { background: #fff; border: 1.5px solid var(--paper-line); border-radius: 8px; padding: 18px; margin-bottom: 18px; }
+      .lv-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+      .lv-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      .lv-field span { font-size: 12px; font-weight: 700; color: #55584f; }
+      .lv-input {
+        width: 100%; box-sizing: border-box; border: 1.5px solid var(--paper-line);
+        border-radius: 6px; padding: 10px 11px; font: inherit; color: var(--ink); background: #fff;
+      }
+      .lv-input:focus, .lv-reason:focus { outline: 2px solid #c9d9ce; outline-offset: 1px; border-color: var(--green); }
       .lv-mode-toggle, .lv-actions { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
       .lv-mode-btn {
         font-size: 13px; padding: 7px 12px; border-radius: 6px;
@@ -62,6 +70,9 @@ export function AppStyles() {
       .lv-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-radius: 8px; margin-bottom: 20px; border: 1.5px solid var(--paper-line); background: #fff; }
       .lv-summary-text { font-size: 15px; font-weight: 700; margin: 0 0 2px 0; }
       .lv-summary-sub { font-size: 13px; color: #6b6e64; margin: 0; line-height: 1.4; }
+      .lv-meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 8px; }
+      .lv-meta-item { font-size: 12.5px; color: #55584f; }
+      .lv-meta-item strong { color: var(--ink); }
       .lv-table-wrap { overflow-x: auto; border-radius: 8px; }
       table.lv-table { width: 100%; min-width: 700px; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--paper-line); }
       .lv-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6e64; padding: 10px 14px; border-bottom: 1.5px solid var(--paper-line); font-weight: 700; }
@@ -76,14 +87,25 @@ export function AppStyles() {
       .lv-link { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; text-decoration: none; }
       .lv-empty { color: #6b6e64; text-align: center; }
       .lv-spinner { animation: lv-spin 1s linear infinite; }
+      .lv-source-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+      .lv-source-toggle {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        border: 1.5px solid var(--paper-line); border-radius: 6px; background: #fff;
+        color: var(--green); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700;
+        padding: 7px 11px;
+      }
       .lv-doc { flex: 1 1 320px; background: #fff; border: 1.5px solid var(--paper-line); border-radius: 8px; overflow: hidden; }
       .lv-doc h3 { margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--paper-line); font-size: 14px; }
-      .lv-doc iframe, .lv-doc img { display: block; width: 100%; height: 520px; border: 0; object-fit: contain; background: #fff; }
+      .lv-page-stack { display: grid; gap: 10px; padding: 10px; background: #f7f5ef; max-height: 620px; overflow: auto; }
+      .lv-page-img { display: block; width: 100%; height: auto; border: 1px solid var(--paper-line); border-radius: 4px; background: #fff; }
+      .lv-doc iframe, .lv-doc > img { display: block; width: 100%; height: 520px; border: 0; object-fit: contain; background: #fff; }
       .lv-reason { width: 100%; min-height: 86px; box-sizing: border-box; border: 1.5px solid var(--paper-line); border-radius: 8px; padding: 10px; font: inherit; }
       @keyframes lv-spin { to { transform: rotate(360deg); } }
       @media (max-width: 640px) {
         .lv-root { padding: 24px 14px; }
         .lv-toolbar, .lv-summary { align-items: flex-start; flex-direction: column; }
+        .lv-form-grid { grid-template-columns: 1fr; }
+        .lv-source-bar { align-items: flex-start; flex-direction: column; }
         .lv-run-btn { width: 100%; }
         table.lv-table { min-width: 620px; }
       }
