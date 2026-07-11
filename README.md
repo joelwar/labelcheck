@@ -7,6 +7,8 @@ This monorepo contains a working prototype for TTB-style alcohol beverage label 
 
 The app accepts applicant contact details plus either two files, one application form and one label image, or one combined PDF containing both. Submissions are stored in an in-memory queue so agents can confirm, override, or manually decide review outcomes.
 
+Experiment files can be kept in `sample_files/`. Add application PDFs, label images, or combined two-page PDFs there when you want local/demo files for trying the app.
+
 ## Local Setup
 
 ### Backend
